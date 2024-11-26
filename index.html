@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typing Stress Analyzer</title>
+  <style>
+    body {
+      font-size: 23px;
+      margin: 0;
+      padding: 20px;
+      background-color: #1e1e1e;
+      color: #ffffff;
+      font-family: 'Courier New', monospace;
+    }
+
+    #terminal {
+      width: 80%;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #000000;
+      border-radius: 5px;
+      box-shadow: 0 0 10px #ffffff;
+    }
+
+    .line {
+      margin: 5px 0;
+    }
+
+    .input-box {
+      border: none;
+      background: none;
+      color: #ffffff;
+      font-size: 16px;
+      outline: none;
+      width: 90%;
+    }
+
+    #feedback {
+      color: #808080;
+      margin-top: 10px;
+      white-space: pre-line;
+    }
+
+    .conversation {
+      font-family: 'Courier New', monospace;
+      white-space: pre-line;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="terminal">
+    <div class="line">&gt;>> Welcome to the Anxiety Personality Test</div>
+    <div class="line">&gt;>> Choose your balloon color (red, yellow, blue, green):</div>
+    <div id="conversation" class="conversation"></div>
+    <div class="line">
+      <span>&gt; </span><input class="input-box" id="userInput" type="text" autofocus>
+    </div>
+    <div id="feedback"></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+  <script src="https://unpkg.com/ml5@1/dist/ml5.min.js"></script>
+  <script>
+    let sentiment;
+    let inputBox;
+    let sentimentResult;
+    let conversation;
+    let totalConfidence = 0;
+    let inputCount = 0;
+    const maxInputs = 5; // Total inputs required for sentiment analysis
+    let colorChosen = false;
+    let balloonColor = "";
+    let colorScore = 0;
+
+    function preload() {
+      // Initialize the sentiment analysis model
+      sentiment = ml5.sentiment("MovieReviews");
+    }
+
+    function setup() {
+      noCanvas();
+
+      // Setup the DOM elements
+      inputBox = select('#userInput');
+      sentimentResult = select('#feedback');
+      conversation = select('#conversation');
+      sentimentResult.html('Please choose your balloon color.');
+
+      // Listen for the Enter key to submit
+      inputBox.elt.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+          handleSubmit();
+        }
+      });
+    }
+
+    function handleSubmit() {
+      let text = inputBox.value().trim();
+      if (!colorChosen) {
+        // Handle balloon color selection
+        handleColorChoice(text);
+      } else {
+        // Handle sentiment analysis input
+        getSentiment(text);
+      }
+    }
+
+    function handleColorChoice(text) {
+      const validColors = { red: 100, yellow: 75, blue: 50, green: 25 };
+      if (validColors[text.toLowerCase()]) {
+        balloonColor = text.toLowerCase();
+        colorScore = validColors[balloonColor];
+        colorChosen = true;
+        conversation.html(conversation.html() + `> Chosen balloon color: ${balloonColor}\n`);
+        sentimentResult.html('Now type your thoughts below.');
+        inputBox.value(''); // Clear input box
+      } else {
+        sentimentResult.html('Invalid color. Please choose from red, yellow, blue, or green.');
+      }
+    }
+
+    function getSentiment(text) {
+      if (inputCount < maxInputs) {
+        // Show the text input in the conversation area
+        conversation.html(conversation.html() + `> ${text}\n`);
+
+        // Start making the prediction
+        sentiment.predict(text, gotResult);
+      }
+    }
+
+    function gotResult(prediction) {
+      // Accumulate sentiment confidence and update count
+      totalConfidence += prediction.confidence;
+      inputCount++;
+
+      if (inputCount < maxInputs) {
+        // Prompt user to continue
+        sentimentResult.html('Keep typing!');
+        inputBox.value(''); // Clear the input box for the next entry
+      } else {
+        // Calculate the final result and display it
+        let averageConfidence = (1 - totalConfidence / maxInputs).toFixed(2);
+        let finalScore = (colorScore * 0.5) + (averageConfidence * 100 * 0.5);
+        sentimentResult.html(
+          `>>> Test report:<br>
+          Final Score: ${finalScore.toFixed(2)}<br>`
+        );
+
+        // Provide sentiment feedback
+        if (finalScore < 25) {
+  sentimentResult.html(sentimentResult.html() + "<br>> Sentiment: Smiling Angel!<br>> Suggested Action: Congrats! You seem to be at ease, keep smiling and enjoy every moment!");
+} else if (finalScore >= 25 && finalScore < 50) {
+  sentimentResult.html(sentimentResult.html() + "<br>> Sentiment: A bit nervous, relax!<br>> Suggested Action: Try some deep breaths, give yourself some space, and stay calm!");
+} else if (finalScore >= 50 && finalScore < 75) {
+  sentimentResult.html(sentimentResult.html() + "<br>> Sentiment: A little uneasy, take a deep breath!<br>> Suggested Action: Don't worry, take a short break, breathe deeply, and relax!");
+} else if (finalScore >= 75 && finalScore < 100) {
+  sentimentResult.html(sentimentResult.html() + "<br>> Sentiment: Crying, let's soothe you!<br>> Suggested Action: Feeling a bit overwhelmed? Take some time to relax, and let go of the tension!");
+}
+
+
+        // Disable further typing
+        inputBox.attribute("disabled", true);
+      }
+    }
+  </script>
+</body>
+</html>
